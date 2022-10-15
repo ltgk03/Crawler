@@ -1,11 +1,17 @@
 const cheerio = require('cheerio');
-const exceljs = require('exceljs');
 const axios = require('axios');
-
+const fs = require('fs');
 const url = "https://jprp.vn/index.php/JPRP/issue/archive";
-var db = [];
 
-async function scrapeData(db) {
+fs.writeFileSync('info.csv', `ID\tNewspaper Name\tAuthors\tPublished Date\tNewspaper Number`, (err) => {
+  if (err) console.log(err);
+  else {
+    console.log("Create file successfully");
+  }
+});
+
+var count = 0;
+async function scrapeData() {
   try {
     const { data } = await axios.get(url);
     const document = cheerio.load(data);
@@ -57,19 +63,29 @@ async function scrapeDataFromChaper(url) {
     
     const document = cheerio.load(data);
     const info = { 
+        id: ++count,
         newsName : document(".article-details header h2").text().trim(),
         authors : document("#authorString").text().trim(),
         Date : document(".date-published").text().trim().slice(document(".date-published").text().trim().lastIndexOf('\t') + 1),
         newsNumber : document(".title").text().trim()
     } 
-    console.log(info);
-    
+    let tmp =`\n`;
+    Object.keys(info).forEach(function (key) {
+      tmp = tmp + info[key] + `\t`;
+    });
+    fs.appendFileSync('info.csv', tmp, (err) => {
+      if (err) console.log(err);
+      else console.log("Operation success");
+    })
+
   } catch (err) {
         console.error(err);
     }
   }
-// Invoke the above function
-scrapeData(db);
+
+  scrapeData();
+
+
 
 
 
