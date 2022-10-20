@@ -1,10 +1,8 @@
 const cheerio = require('cheerio');
 const axios = require('axios');
-const URL = require('url').URL;
-
-const url = "https://jprp.vn/index.php/JPRP/issue/archive";
+const fs = require('fs');
+const url = "https://tapchiyhocvietnam.vn/index.php/vmj/issue/archive";
 var count = 0;
-var info2 = [];
 function validateURL(urlString) {
     try {
         new URL(urlString);
@@ -13,69 +11,71 @@ function validateURL(urlString) {
         return false;
     }
 }
-async function crawlSeries(url) {
+function resetFile() {
+    fs.writeFileSync('cache.json', "", (err) => {
+        console.error(err);
+    });
+}
+async function crawlSeries(url, resetFile) {
     try {
+        resetFile();
         const { data } = await axios.get(url);
         const document = cheerio.load(data);
-        const listItems = document(".issue-summary .media-body .title");
-        const allSeries = [];
-        for (const el of listItems) {
-           allSeries.push(document(el).attr("href"));
-        }
-        var next = document(".pager li .next").attr("href");
-        if (validateURL(next)) {
-            await crawlSeries(next);
-        } 
-        for (let i = 0; i < allSeries.length; i++) {
-            info2 = info2.concat(await crawlPapers(allSeries[i]));
-        } 
-        return info2;   
-    } catch (err) {
-        console.error(err);
+        const listItems = document(".media-body .title");
+        const allLinks = [];
+        listItems.each((idx, el) => {
+          const link = document(el).attr("href");
+          allLinks.push(link);
+        });
+        allLinks.forEach((link) => { 
+          crawlPapers(link);  
+        });  
+      } catch (err) {
+       console.error(err);
     }
 }
 
-async function crawlPapers(arg) {
+async function crawlPapers(url) {
     try {
-        let info1 = [];
-        const {data} = await axios.get(arg);
-        const document1 = cheerio.load(data);
-        const listItems1 = document1(".article-summary .media-body a:not([class])");
-        const allPapers = [];
-        for (const el of listItems1) {
-            allPapers.push(document1(el).attr("href"));
-        }
-        for (let j = 0; j < allPapers.length; j++) {
-            info1.push(await crawlInfo(allPapers[j]));    
-        } 
-        console.log(info1);
-        return info1;
-    } catch (err) {
-        console.error(err);
-    }    
+        const { data } = await axios.get(url);
+        const document = cheerio.load(data);
+        const listItems = document(".media-body");
+        const allLinks = [];
+        listItems.each((idx, el) => {
+          let link;
+          link = document(el).find('a').attr("href");
+          allLinks.push(link);
+        });
+        allLinks.forEach((link) => { 
+           crawlInfo(link);  
+        }); 
+      } catch (err) {
+       console.error(err);
+      }
 };
-         
-
-async function crawlInfo(arg) {
+async function crawlInfo(url) {
     try {
-        const {data} = await axios.get(arg);
-        const document2 = cheerio.load(data);
-        count++;
+        const { data } = await axios.get(url);
+        const document = cheerio.load(data);
+        let authors = [];
+        document('meta[name="citation_author"]').each((idx, el) => {
+            authors.push(document(el).prop('content'));
+        });
+        authors.join(', ');
         const info = {
-            id: count,
-            name: document2(".article-details header h2").text().trim(),
-            authors: document2("#authorString").text().trim(),
-            publishedDate: document2(".date-published").clone().children().remove().end().text().trim(),
-            title: document2(".title").text().trim() 
+            'id' : ++count,
+            'title' : document('meta[name="citation_title"]').prop('content'),
+            'authors' : authors.join(', '),
+            'date' : document('meta[name="citation_date"]').prop('content'),
+            'series' : `Tập ${document('meta[name="citation_volume"]').prop('content')} S. ${document('meta[name="citation_issue"]').prop('content')}`
         }
-        return info; 
+        fs.appendFileSync('cache.json', await JSON.stringify(info) + '\n', (err) => {
+            console.log(err);
+        });
     } catch (err) {
-        console.error(err);
-    }    
+          console.error(err);
+    }   
 };
 
-(async function main() {
-    const result = await crawlSeries(url);
-    console.log(result);
-})();
+crawlSeries(url, resetFile);
 
