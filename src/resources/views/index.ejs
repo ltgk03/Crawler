@@ -6,30 +6,7 @@
 <body>
     <%- include('partials/header') %>
     <main>
-        <h1>Your result</h1>
-        <br>
-        <table class="table">
-            <thead>
-              <tr>
-                <th scope="col">ID</th>
-                <th scope="col">Title</th>
-                <th scope="col">Authors</th>
-                <th scope="col">Published Date</th>
-                <th scope="col">Newspaper Number</th>
-              </tr>
-            </thead>
-            <tbody>
-             <% for (let el of data) { %>
-              <tr>
-                <th scope="row"><%= el['id'] %></td>
-                <td><%= el['title'] %></td>
-                <td><%= el['authors'] %></td>
-                <td><%= el['date'] %></td>
-                <td><%= el['series'] %></td>
-              </tr>
-             <% }; %> 
-            </tbody>
-          </table>
+        
     </main>
     <%- include('partials/footer') %>
 </body>
